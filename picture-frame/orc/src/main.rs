@@ -4,6 +4,8 @@ use dialoguer::Input;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use uuid::Uuid;
+use walkdir::WalkDir;
 use xshell::{Shell, cmd};
 
 #[derive(Parser)]
@@ -93,29 +95,33 @@ fn setup() -> Result<()> {
     Config { user, host, source, staging, destination, repo }.save()
 }
 
+const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "heic", "heif", "tiff", "gif", "webp"];
+
 fn sync(config: &Config) -> Result<()> {
     let sh = Shell::new()?;
 
+    let source = PathBuf::from(&config.source);
     let staging = PathBuf::from(&config.staging);
     let staging_str = &config.staging;
     let dest = format!("{}@{}:{}", config.user, config.host, config.destination);
-    let source = &config.source;
 
     fs::create_dir_all(&staging).context("failed to create staging dir")?;
 
-    cmd!(sh, "rsync -avz --exclude=.DS_Store {source} {staging_str}").run()?;
-
-    for entry in fs::read_dir(&staging).context("failed to read staging dir")? {
-        let entry = entry?;
+    for entry in WalkDir::new(&source).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
-        if path.is_file() {
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                let lower = name.to_lowercase();
-                if lower != name {
-                    fs::rename(&path, staging.join(&lower))?;
-                }
-            }
+        if !path.is_file() {
+            continue;
         }
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        if !IMAGE_EXTENSIONS.contains(&ext.as_str()) {
+            continue;
+        }
+        let name = format!("{}.{}", Uuid::new_v4(), ext);
+        fs::copy(path, staging.join(name))?;
     }
 
     for entry in fs::read_dir(&staging).context("failed to read staging dir")? {
