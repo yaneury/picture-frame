@@ -154,7 +154,7 @@ fn sync(config: &Config, directory: Option<String>) -> Result<()> {
     }
 
     let staging_src = format!("{}/", staging_str.trim_end_matches('/'));
-    cmd!(sh, "rsync -avz --ignore-existing --exclude=*.heic --exclude=*.heif {staging_src} {dest}").run()?;
+    cmd!(sh, "rsync -avz --delete --exclude=*.heic --exclude=*.heif {staging_src} {dest}").run()?;
 
     Ok(())
 }
