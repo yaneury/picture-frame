@@ -25,7 +25,10 @@ enum Cmd {
     #[command(about = "Turn on the display and reboot")]
     Wake,
     #[command(about = "Sync memories to the picture frame")]
-    Sync,
+    Sync {
+        #[arg(long)]
+        directory: Option<String>,
+    },
     #[command(about = "Build and deploy a release update")]
     Update,
     #[command(about = "Build and deploy a debug build")]
@@ -107,10 +110,10 @@ fn imagemagick_cmd() -> &'static str {
     if available { "magick" } else { "convert" }
 }
 
-fn sync(config: &Config) -> Result<()> {
+fn sync(config: &Config, directory: Option<String>) -> Result<()> {
     let sh = Shell::new()?;
 
-    let source = PathBuf::from(&config.source);
+    let source = PathBuf::from(directory.unwrap_or_else(|| config.source.clone()));
     let staging = PathBuf::from(&config.staging);
     let staging_str = &config.staging;
     let dest = format!("{}@{}:{}", config.user, config.host, config.destination);
@@ -210,7 +213,7 @@ fn main() -> Result<()> {
             cmd!(sh, "ssh {remote} xset -d :0 dpms force on").run()?;
             cmd!(sh, "ssh {remote} sudo reboot").run()?;
         }
-        Cmd::Sync => sync(&config)?,
+        Cmd::Sync { directory } => sync(&config, directory)?,
         Cmd::Update => deploy(&config, "0.0.6", false)?,
         Cmd::Debug => {
             let sh = Shell::new()?;
