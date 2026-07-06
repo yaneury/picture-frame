@@ -67,10 +67,10 @@ struct AppState {
     sync_status: Arc<Mutex<SyncStatus>>,
 }
 
-fn orc_config_path() -> Result<PathBuf> {
+fn curator_config_path() -> Result<PathBuf> {
     dirs::config_dir()
         .context("cannot find config dir")
-        .map(|b| b.join("twyk/digital-frame/orc.toml"))
+        .map(|b| b.join("twyk/digital-frame/curator.toml"))
 }
 
 fn state_file_path() -> Result<PathBuf> {
@@ -197,7 +197,7 @@ async fn post_sync(State(state): State<AppState>) -> impl IntoResponse {
 
     let sync_status = Arc::clone(&state.sync_status);
     tokio::spawn(async move {
-        let result = tokio::process::Command::new("orc")
+        let result = tokio::process::Command::new("curator")
             .arg("sync")
             .arg("--directory")
             .arg(&active_dir)
@@ -208,8 +208,8 @@ async fn post_sync(State(state): State<AppState>) -> impl IntoResponse {
         s.running = false;
         s.last_error = match result {
             Ok(exit) if exit.success() => None,
-            Ok(exit) => Some(format!("orc exited with status {exit}")),
-            Err(e) => Some(format!("failed to spawn orc: {e}")),
+            Ok(exit) => Some(format!("curator exited with status {exit}")),
+            Err(e) => Some(format!("failed to spawn curator: {e}")),
         };
     });
 
@@ -427,10 +427,10 @@ async fn delete_file(
 #[tokio::main]
 async fn main() -> Result<()> {
     let config: OrcConfig = {
-        let path = orc_config_path()?;
+        let path = curator_config_path()?;
         let raw = std::fs::read_to_string(&path)
-            .with_context(|| format!("orc.toml not found at {}, run `orc setup`", path.display()))?;
-        toml::from_str(&raw).context("failed to parse orc.toml")?
+            .with_context(|| format!("curator.toml not found at {}, run `curator setup`", path.display()))?;
+        toml::from_str(&raw).context("failed to parse curator.toml")?
     };
 
     let app_state = AppState {

@@ -8,7 +8,7 @@ use walkdir::WalkDir;
 use xshell::{Shell, cmd};
 
 #[derive(Parser)]
-#[command(name = "orc", about = "Orchestrator for the twyk picture frame")]
+#[command(name = "curator", about = "Curator for the twyk picture frame")]
 struct Cli {
     #[command(subcommand)]
     command: Cmd,
@@ -48,7 +48,7 @@ struct Config {
 impl Config {
     fn path() -> Result<PathBuf> {
         let base = dirs::config_dir().context("could not find config directory")?;
-        Ok(base.join("twyk/digital-frame/orc.toml"))
+        Ok(base.join("twyk/digital-frame/curator.toml"))
     }
 
     fn load() -> Result<Self> {
