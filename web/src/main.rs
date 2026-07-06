@@ -1,11 +1,12 @@
 use anyhow::{Context, Result};
 use axum::{
     extract::{DefaultBodyLimit, Multipart, Query, State},
-    http::{header, StatusCode},
+    http::{header, StatusCode, Uri},
     response::IntoResponse,
     routing::{delete, get, post},
     Json, Router,
 };
+use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
@@ -14,7 +15,10 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
-use tower_http::cors::CorsLayer;
+
+#[derive(RustEmbed)]
+#[folder = "dist"]
+struct Assets;
 
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "heic", "heif", "tiff", "gif", "webp"];
 const PREVIEWABLE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "webp"];
@@ -424,6 +428,22 @@ async fn delete_file(
     }
 }
 
+async fn serve_asset(uri: Uri) -> impl IntoResponse {
+    let path = uri.path().trim_start_matches('/');
+    let path = if path.is_empty() { "index.html" } else { path };
+
+    match Assets::get(path) {
+        Some(content) => {
+            let mime = mime_guess::from_path(path).first_or_octet_stream();
+            ([(header::CONTENT_TYPE, mime.as_ref().to_owned())], content.data).into_response()
+        }
+        None => match Assets::get("index.html") {
+            Some(index) => ([(header::CONTENT_TYPE, "text/html")], index.data).into_response(),
+            None => (StatusCode::NOT_FOUND, "not found").into_response(),
+        },
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let config: OrcConfig = {
@@ -448,7 +468,7 @@ async fn main() -> Result<()> {
         .route("/api/upload", post(upload_files).layer(DefaultBodyLimit::max(200 * 1024 * 1024)))
         .route("/api/file", delete(delete_file))
         .route("/api/directory", post(create_directory).delete(delete_directory))
-        .layer(CorsLayer::permissive())
+        .fallback(serve_asset)
         .with_state(app_state);
 
     let port: u16 = std::env::var("FRAME_CONTROLLER_PORT")
