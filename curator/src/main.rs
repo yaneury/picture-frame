@@ -47,8 +47,8 @@ struct Config {
 
 impl Config {
     fn path() -> Result<PathBuf> {
-        let base = dirs::config_dir().context("could not find config directory")?;
-        Ok(base.join("twyk/digital-frame/curator.toml"))
+        let base = dirs::home_dir().context("could not find home directory")?;
+        Ok(base.join(".curator.toml"))
     }
 
     fn load() -> Result<Self> {

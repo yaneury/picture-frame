@@ -72,9 +72,9 @@ struct AppState {
 }
 
 fn curator_config_path() -> Result<PathBuf> {
-    dirs::config_dir()
-        .context("cannot find config dir")
-        .map(|b| b.join("twyk/digital-frame/curator.toml"))
+    dirs::home_dir()
+        .context("cannot find home dir")
+        .map(|b| b.join(".curator.toml"))
 }
 
 fn state_file_path() -> Result<PathBuf> {
