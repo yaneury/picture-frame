@@ -14,7 +14,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
-use tower_http::{cors::CorsLayer, services::{ServeDir, ServeFile}};
+use tower_http::cors::CorsLayer;
 
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "heic", "heif", "tiff", "gif", "webp"];
 const PREVIEWABLE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "gif", "webp"];
@@ -438,9 +438,6 @@ async fn main() -> Result<()> {
         sync_status: Arc::new(Mutex::new(SyncStatus { running: false, last_error: None })),
     };
 
-    let serve_dir = ServeDir::new("../web-ui/dist")
-        .not_found_service(ServeFile::new("../web-ui/dist/index.html"));
-
     let router = Router::new()
         .route("/api/tree", get(get_tree))
         .route("/api/state", get(get_state).post(post_state))
@@ -451,7 +448,6 @@ async fn main() -> Result<()> {
         .route("/api/upload", post(upload_files).layer(DefaultBodyLimit::max(200 * 1024 * 1024)))
         .route("/api/file", delete(delete_file))
         .route("/api/directory", post(create_directory).delete(delete_directory))
-        .nest_service("/", serve_dir)
         .layer(CorsLayer::permissive())
         .with_state(app_state);
 
