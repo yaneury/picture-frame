@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use walkdir::WalkDir;
-use xshell::{Shell, cmd};
+use xshell::{cmd, Shell};
 
 #[derive(Parser)]
 #[command(name = "curator", about = "Curator for the twyk picture frame")]
@@ -55,7 +55,7 @@ impl Config {
         let path = Self::path()?;
         let raw = fs::read_to_string(&path).with_context(|| {
             format!(
-                "config not found at {}, run `orc setup` first",
+                "config not found at {}, run ` curator setup` first",
                 path.display()
             )
         })?;
@@ -96,7 +96,15 @@ fn setup() -> Result<()> {
         .with_prompt("Repo directory (local path to twyk repo)")
         .interact_text()?;
 
-    Config { user, host, source, staging, destination, repo }.save()
+    Config {
+        user,
+        host,
+        source,
+        staging,
+        destination,
+        repo,
+    }
+    .save()
 }
 
 const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "heic", "heif", "tiff", "gif", "webp"];
@@ -107,7 +115,11 @@ fn imagemagick_cmd() -> &'static str {
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false);
-    if available { "magick" } else { "convert" }
+    if available {
+        "magick"
+    } else {
+        "convert"
+    }
 }
 
 fn sync(config: &Config, directory: Option<String>) -> Result<()> {
@@ -154,7 +166,11 @@ fn sync(config: &Config, directory: Option<String>) -> Result<()> {
     }
 
     let staging_src = format!("{}/", staging_str.trim_end_matches('/'));
-    cmd!(sh, "rsync -avz --delete --exclude=*.heic --exclude=*.heif {staging_src} {dest}").run()?;
+    cmd!(
+        sh,
+        "rsync -avz --delete --exclude=*.heic --exclude=*.heif {staging_src} {dest}"
+    )
+    .run()?;
 
     let remote = config.remote();
     cmd!(sh, "ssh {remote} sh -c 'pkill -x twyk; true'").run()?;
