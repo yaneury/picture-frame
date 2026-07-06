@@ -163,7 +163,8 @@ fn sync(config: &Config, directory: Option<String>) -> Result<()> {
     .run()?;
 
     let remote = config.remote();
-    cmd!(sh, "ssh {remote} sh -c 'pkill -x Xorg; true'").run()?;
+    // pkill exits non-zero when no matching process is found; that's not an error here.
+    let _ = cmd!(sh, "ssh {remote} pkill -x Xorg").run();
 
     Ok(())
 }
