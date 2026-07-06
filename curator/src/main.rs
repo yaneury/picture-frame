@@ -163,7 +163,7 @@ fn sync(config: &Config, directory: Option<String>) -> Result<()> {
     .run()?;
 
     let remote = config.remote();
-    cmd!(sh, "ssh {remote} sh -c 'pkill -x twyk; true'").run()?;
+    cmd!(sh, "ssh {remote} sh -c 'pkill -x Xorg; true'").run()?;
 
     Ok(())
 }
