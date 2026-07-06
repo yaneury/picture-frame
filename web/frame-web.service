@@ -1,0 +1,13 @@
+[Unit]
+Description=Frame Curator Web App
+After=network.target
+
+[Service]
+ExecStart=%h/.local/bin/frame-controller
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=FRAME_CONTROLLER_PORT=8080
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target
