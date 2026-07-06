@@ -29,10 +29,6 @@ enum Cmd {
         #[arg(long)]
         directory: Option<String>,
     },
-    #[command(about = "Build and deploy a release update")]
-    Update,
-    #[command(about = "Build and deploy a debug build")]
-    Debug,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -42,7 +38,6 @@ struct Config {
     source: String,
     staging: String,
     destination: String,
-    repo: String,
 }
 
 impl Config {
@@ -92,17 +87,12 @@ fn setup() -> Result<()> {
     let destination = Input::<String>::new()
         .with_prompt("Destination directory (remote path)")
         .interact_text()?;
-    let repo = Input::<String>::new()
-        .with_prompt("Repo directory (local path to twyk repo)")
-        .interact_text()?;
-
     Config {
         user,
         host,
         source,
         staging,
         destination,
-        repo,
     }
     .save()
 }
@@ -178,32 +168,6 @@ fn sync(config: &Config, directory: Option<String>) -> Result<()> {
     Ok(())
 }
 
-fn deploy(config: &Config, version: &str, debug: bool) -> Result<()> {
-    let sh = Shell::new()?;
-    let remote = config.remote();
-    let repo = &config.repo;
-    let image = "twyk-cross:latest";
-    let profile = if debug { "debug" } else { "release" };
-    let deb_in_vol = format!("{}/bundle/deb/twyk_{}_arm64.deb", profile, version);
-    let local_deb = format!("{}/twyk_{}_arm64.deb", repo, version);
-    let dockerfile = format!("{}/picture-frame/Dockerfile.cross", repo);
-    let debug_flag = if debug { "--debug" } else { "" };
-    let build_cmd = format!(
-        "cd /app/picture-frame/app && npm install && npx tauri build --bundles deb {}",
-        debug_flag
-    );
-
-    cmd!(sh, "docker build -f {dockerfile} -t {image} {repo}").run()?;
-    cmd!(sh, "docker run --rm -v {repo}:/app -v twyk-target:/app/picture-frame/app/src-tauri/target {image} sh -c {build_cmd}").run()?;
-    cmd!(sh, "docker run --rm -v twyk-target:/vol -v {repo}:/host alpine cp /vol/{deb_in_vol} /host/twyk_{version}_arm64.deb").run()?;
-
-    cmd!(sh, "scp {local_deb} {remote}:/home/pi/downloads/twyk.deb").run()?;
-    cmd!(sh, "ssh {remote} sudo dpkg -i /home/pi/downloads/twyk.deb").run()?;
-    cmd!(sh, "ssh {remote} rm /home/pi/downloads/twyk.deb").run()?;
-    cmd!(sh, "ssh {remote} sudo reboot").run()?;
-
-    Ok(())
-}
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -233,14 +197,6 @@ fn main() -> Result<()> {
             cmd!(sh, "ssh {remote} sudo reboot").run()?;
         }
         Cmd::Sync { directory } => sync(&config, directory)?,
-        Cmd::Update => deploy(&config, "0.0.6", false)?,
-        Cmd::Debug => {
-            let sh = Shell::new()?;
-            sh.change_dir(&config.repo);
-            let version = cmd!(sh, "git describe --tags --abbrev=0").read()?;
-            let version = version.trim().trim_start_matches('v');
-            deploy(&config, version, true)?;
-        }
     }
 
     Ok(())

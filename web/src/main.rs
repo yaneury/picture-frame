@@ -34,8 +34,6 @@ struct OrcConfig {
     staging: String,
     #[allow(dead_code)]
     destination: String,
-    #[allow(dead_code)]
-    repo: String,
 }
 
 #[derive(Serialize, Deserialize)]
