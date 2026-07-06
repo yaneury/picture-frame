@@ -2,6 +2,7 @@ fn main() {
     println!("cargo:rerun-if-changed=ui/src");
     println!("cargo:rerun-if-changed=ui/index.html");
     println!("cargo:rerun-if-changed=ui/package.json");
+    println!("cargo:rerun-if-changed=ui/vite.config.ts");
 
     let ui = std::path::Path::new("ui");
 
