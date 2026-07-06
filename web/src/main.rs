@@ -335,16 +335,47 @@ async fn upload_files(
         if !IMAGE_EXTENSIONS.contains(&ext.as_str()) {
             continue;
         }
-        eprintln!("[upload] field name={safe_name} ext={ext}");
+        let heic = matches!(ext.as_str(), "heic" | "heif");
         match field.bytes().await {
             Ok(data) => {
-                let dest = dir.join(&safe_name);
-                eprintln!("[upload] writing {} bytes to {}", data.len(), dest.display());
-                if let Err(e) = tokio::fs::write(&dest, &data).await {
-                    eprintln!("[upload] write error: {e}");
-                    return err500(e.into()).into_response();
+                if heic {
+                    let stem = Path::new(&safe_name)
+                        .file_stem()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .into_owned();
+                    let tmp = dir.join(&safe_name);
+                    let jpeg_name = format!("{stem}.jpg");
+                    let dest = dir.join(&jpeg_name);
+                    if let Err(e) = tokio::fs::write(&tmp, &data).await {
+                        return err500(e.into()).into_response();
+                    }
+                    #[cfg(target_os = "macos")]
+                    let mut cmd = {
+                        let mut c = tokio::process::Command::new("sips");
+                        c.args(["-s", "format", "jpeg"]).arg(&tmp).args(["--out"]).arg(&dest);
+                        c
+                    };
+                    #[cfg(not(target_os = "macos"))]
+                    let mut cmd = {
+                        let mut c = tokio::process::Command::new("convert");
+                        c.arg(&tmp).arg(&dest);
+                        c
+                    };
+                    let status = cmd.status().await;
+                    let _ = tokio::fs::remove_file(&tmp).await;
+                    match status {
+                        Ok(s) if s.success() => saved.push(jpeg_name),
+                        Ok(s) => return err500(anyhow::anyhow!("heic conversion exited with {s}")).into_response(),
+                        Err(e) => return err500(e.into()).into_response(),
+                    }
+                } else {
+                    let dest = dir.join(&safe_name);
+                    if let Err(e) = tokio::fs::write(&dest, &data).await {
+                        return err500(e.into()).into_response();
+                    }
+                    saved.push(safe_name);
                 }
-                saved.push(safe_name);
             }
             Err(e) => {
                 eprintln!("[upload] bytes() error: {e}");
